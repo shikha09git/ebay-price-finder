@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+
+{% block title %}Results - eBay Price Finder{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-4 mb-4">
+        <div class="card mb-4">
+            <div class="card-body text-center">
+                {% if product_image.image %}
+                <img src="{{ product_image.image.url }}" alt="Uploaded product" class="img-fluid rounded mb-3" style="max-height: 250px;">
+                {% else %}
+                <div class="bg-light rounded p-5 mb-3">
+                    <i class="bi bi-search display-1 text-muted"></i>
+                </div>
+                {% endif %}
+                <h5>{{ product_image.detected_label|default:"Unknown Product" }}</h5>
+                <small class="text-muted">Searched {{ product_image.uploaded_at|timesince }} ago</small>
+            </div>
+        </div>
+
+        {% if price_suggestion %}
+        <div class="card suggestion-card mb-4">
+            <div class="card-body text-center">
+                <h5 class="mb-3"><i class="bi bi-lightbulb"></i> Suggested Listing Price</h5>
+                <div class="display-4 mb-3">${{ price_suggestion.suggested_price }}</div>
+                <p class="mb-0">Based on {{ price_suggestion.total_listings }} listings</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-bar-chart"></i> Market Analysis</h5>
+                <table class="table table-sm mb-0">
+                    <tr><td><i class="bi bi-arrow-down text-success"></i> Lowest</td><td class="text-end fw-bold">${{ price_suggestion.min_price }}</td></tr>
+                    <tr><td><i class="bi bi-arrow-up text-danger"></i> Highest</td><td class="text-end fw-bold">${{ price_suggestion.max_price }}</td></tr>
+                    <tr><td><i class="bi bi-calculator"></i> Average</td><td class="text-end fw-bold">${{ price_suggestion.average_price }}</td></tr>
+                    <tr><td><i class="bi bi-distribute-vertical"></i> Median</td><td class="text-end fw-bold">${{ price_suggestion.median_price }}</td></tr>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="d-grid gap-2 mt-4">
+            <a href="{% url 'finder:refresh' pk=product_image.pk %}" class="btn btn-outline-primary">
+                <i class="bi bi-arrow-clockwise"></i> Refresh Search
+            </a>
+            <a href="{% url 'finder:home' %}" class="btn btn-primary">
+                <i class="bi bi-plus-lg"></i> New Search
+            </a>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4><i class="bi bi-list-ul"></i> eBay Listings ({{ search_results.count }})</h4>
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-outline-secondary btn-sm active" data-filter="all">All</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-filter="new">New ({{ new_items.count }})</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-filter="used">Used ({{ used_items.count }})</button>
+            </div>
+        </div>
+
+        {% if search_results %}
+        <div class="row" id="resultsGrid">
+            {% for result in search_results %}
+            <div class="col-md-6 mb-3 result-item" data-condition="{{ result.condition|lower }}">
+                <div class="card product-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <span class="badge {% if 'new' in result.condition|lower %}bg-success{% else %}bg-secondary{% endif %}">
+                                {{ result.condition|default:"Unknown" }}
+                            </span>
+                            <span class="price-tag">${{ result.price }}</span>
+                        </div>
+                        <h6 class="card-title">{{ result.title|truncatewords:12 }}</h6>
+                        <p class="card-text text-muted small mb-2">
+                            <i class="bi bi-person"></i> {{ result.seller_name|default:"Unknown Seller" }}
+                        </p>
+                        <a href="{{ result.item_url }}" target="_blank" class="btn btn-sm btn-outline-primary w-100">
+                            <i class="bi bi-box-arrow-up-right"></i> View on eBay
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> No results found. Try a different search term.
+        </div>
+        {% endif %}
+
+        <div class="card mt-4 border-success">
+            <div class="card-body">
+                <h5 class="card-title text-success"><i class="bi bi-lightbulb-fill"></i> Pricing Strategy</h5>
+                {% if price_suggestion %}
+                <p class="mb-0">
+                    The suggested price of <strong>${{ price_suggestion.suggested_price }}</strong> is 
+                    5% below median to be competitive while maximizing profit.
+                </p>
+                <ul class="mt-2 mb-0">
+                    <li><strong>Quick Sale:</strong> ${{ price_suggestion.min_price }} - ${{ price_suggestion.suggested_price }}</li>
+                    <li><strong>Balanced:</strong> ${{ price_suggestion.suggested_price }} - ${{ price_suggestion.median_price }}</li>
+                    <li><strong>Max Profit:</strong> ${{ price_suggestion.median_price }} - ${{ price_suggestion.max_price }}</li>
+                </ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const filterButtons = document.querySelectorAll('[data-filter]');
+    const resultItems = document.querySelectorAll('.result-item');
+
+    filterButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            filterButtons.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            const filter = this.dataset.filter;
+
+            resultItems.forEach(item => {
+                const condition = item.dataset.condition;
+                if (filter === 'all') item.style.display = 'block';
+                else if (filter === 'new' && condition.includes('new')) item.style.display = 'block';
+                else if (filter === 'used' && !condition.includes('new')) item.style.display = 'block';
+                else item.style.display = 'none';
+            });
+        });
+    });
+});
+</script>
+{% endblock %}

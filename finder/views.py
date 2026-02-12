@@ -1,0 +1,170 @@
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
+from decimal import Decimal
+
+from .models import ProductImage, SearchResult, PriceSuggestion
+from .forms import ImageUploadForm, ManualSearchForm
+from .services import EbayAPIService, ImageRecognitionService, PriceSuggestionService
+
+
+def home(request):
+    """Home page with image upload form."""
+    form = ImageUploadForm()
+    manual_form = ManualSearchForm()
+    recent_searches = ProductImage.objects.all()[:5]
+    
+    return render(request, 'finder/home.html', {
+        'form': form,
+        'manual_form': manual_form,
+        'recent_searches': recent_searches,
+    })
+
+
+@require_POST
+def upload_image(request):
+    """Handle image upload and initiate search."""
+    form = ImageUploadForm(request.POST, request.FILES)
+    
+    if form.is_valid():
+        product_image = form.save()
+        
+        recognition_service = ImageRecognitionService()
+        detected_label = recognition_service.recognize_product(
+            product_image.image.path
+        )
+        product_image.detected_label = detected_label
+        product_image.save()
+        
+        _perform_search(product_image, detected_label)
+        
+        messages.success(request, f'Image uploaded! Detected: "{detected_label}"')
+        return redirect('finder:results', pk=product_image.pk)
+    
+    messages.error(request, 'Error uploading image. Please try again.')
+    return redirect('finder:home')
+
+
+@require_POST
+def manual_search(request):
+    """Handle manual keyword search."""
+    form = ManualSearchForm(request.POST)
+    
+    if form.is_valid():
+        keywords = form.cleaned_data['keywords']
+        
+        product_image = ProductImage.objects.create(
+            detected_label=keywords
+        )
+        
+        _perform_search(product_image, keywords)
+        
+        messages.success(request, f'Search completed for: "{keywords}"')
+        return redirect('finder:results', pk=product_image.pk)
+    
+    messages.error(request, 'Please enter valid search keywords.')
+    return redirect('finder:home')
+
+
+def results(request, pk):
+    """Display search results and price suggestions."""
+    product_image = get_object_or_404(ProductImage, pk=pk)
+    search_results = product_image.search_results.all()
+    
+    try:
+        price_suggestion = product_image.price_suggestion
+    except PriceSuggestion.DoesNotExist:
+        price_suggestion = None
+    
+    new_items = search_results.filter(condition__icontains='new')
+    used_items = search_results.exclude(condition__icontains='new')
+    
+    return render(request, 'finder/results.html', {
+        'product_image': product_image,
+        'search_results': search_results,
+        'new_items': new_items,
+        'used_items': used_items,
+        'price_suggestion': price_suggestion,
+    })
+
+
+def refresh_search(request, pk):
+    """Refresh search for an existing product image."""
+    product_image = get_object_or_404(ProductImage, pk=pk)
+    
+    product_image.search_results.all().delete()
+    try:
+        product_image.price_suggestion.delete()
+    except PriceSuggestion.DoesNotExist:
+        pass
+    
+    keywords = product_image.detected_label or "product"
+    _perform_search(product_image, keywords)
+    
+    messages.success(request, 'Search refreshed successfully!')
+    return redirect('finder:results', pk=pk)
+
+
+def _perform_search(product_image: ProductImage, keywords: str) -> None:
+    """Perform eBay search and save results."""
+    ebay_service = EbayAPIService()
+    results = ebay_service.search_products(keywords)
+    
+    prices = []
+    
+    for item in results:
+        SearchResult.objects.create(
+            product_image=product_image,
+            title=item['title'],
+            price=item['price'],
+            currency=item['currency'],
+            seller_name=item['seller'],
+            item_url=item['item_url'],
+            image_url=item['image_url'],
+            condition=item['condition'],
+        )
+        prices.append(item['price'])
+    
+    if prices:
+        suggestion_data = PriceSuggestionService.calculate_suggestion(prices)
+        PriceSuggestion.objects.create(
+            product_image=product_image,
+            **suggestion_data
+        )
+
+
+def api_search(request):
+    """API endpoint for AJAX searches."""
+    keywords = request.GET.get('keywords', '')
+    
+    if not keywords:
+        return JsonResponse({'error': 'Keywords required'}, status=400)
+    
+    ebay_service = EbayAPIService()
+    results = ebay_service.search_products(keywords)
+    
+    prices = [Decimal(str(float(r['price']))) for r in results]
+    suggestion = PriceSuggestionService.calculate_suggestion(prices)
+    
+    return JsonResponse({
+        'results': [
+            {
+                'title': r['title'],
+                'price': float(r['price']),
+                'currency': r['currency'],
+                'seller': r['seller'],
+                'url': r['item_url'],
+                'condition': r['condition'],
+            }
+            for r in results
+        ],
+        'suggestion': {
+            'min_price': float(suggestion['min_price']),
+            'max_price': float(suggestion['max_price']),
+            'average_price': float(suggestion['average_price']),
+            'median_price': float(suggestion['median_price']),
+            'suggested_price': float(suggestion['suggested_price']),
+            'total_listings': suggestion['total_listings'],
+        }
+    })
