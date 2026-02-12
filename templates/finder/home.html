@@ -11,29 +11,84 @@
                     <i class="bi bi-camera"></i> Find Similar Products on eBay
                 </h2>
                 <p class="text-center text-muted mb-4">
-                    Upload an image of your product to find similar items and get pricing suggestions.
+                    Upload or capture an image of your product to find similar items and get pricing suggestions.
                 </p>
 
-                <form method="post" action="{% url 'finder:upload' %}" enctype="multipart/form-data" id="uploadForm">
-                    {% csrf_token %}
-                    <div class="upload-zone" id="uploadZone">
-                        <i class="bi bi-cloud-upload display-1 text-muted"></i>
-                        <h4 class="mt-3">Drag & Drop your image here</h4>
-                        <p class="text-muted">or click to browse</p>
-                        <input type="file" name="image" id="imageInput" accept="image/*" class="d-none">
+                <!-- Tab Navigation -->
+                <ul class="nav nav-tabs mb-4" id="imageTab" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="upload-tab" data-bs-toggle="tab" data-bs-target="#upload-pane" type="button" role="tab">
+                            <i class="bi bi-cloud-upload"></i> Upload Image
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="camera-tab" data-bs-toggle="tab" data-bs-target="#camera-pane" type="button" role="tab">
+                            <i class="bi bi-camera-fill"></i> Take Photo
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- Tab Content -->
+                <div class="tab-content" id="imageTabContent">
+                    <!-- Upload Tab -->
+                    <div class="tab-pane fade show active" id="upload-pane" role="tabpanel">
+                        <form method="post" action="{% url 'finder:upload' %}" enctype="multipart/form-data" id="uploadForm">
+                            {% csrf_token %}
+                            <div class="upload-zone" id="uploadZone">
+                                <i class="bi bi-cloud-upload display-1 text-muted"></i>
+                                <h4 class="mt-3">Drag & Drop your image here</h4>
+                                <p class="text-muted">or click to browse</p>
+                                <input type="file" name="image" id="imageInput" accept="image/*" class="d-none">
+                            </div>
+                            <div id="previewContainer" class="mt-3 text-center d-none">
+                                <img id="imagePreview" class="img-fluid rounded" style="max-height: 300px;">
+                                <div class="mt-3">
+                                    <button type="submit" class="btn btn-primary btn-lg">
+                                        <i class="bi bi-search"></i> Find Similar Products
+                                    </button>
+                                    <button type="button" class="btn btn-secondary" id="clearImage">
+                                        <i class="bi bi-x"></i> Clear
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
                     </div>
-                    <div id="previewContainer" class="mt-3 text-center d-none">
-                        <img id="imagePreview" class="img-fluid rounded" style="max-height: 300px;">
-                        <div class="mt-3">
-                            <button type="submit" class="btn btn-primary btn-lg">
-                                <i class="bi bi-search"></i> Find Similar Products
-                            </button>
-                            <button type="button" class="btn btn-secondary" id="clearImage">
-                                <i class="bi bi-x"></i> Clear
-                            </button>
-                        </div>
+
+                    <!-- Camera Tab -->
+                    <div class="tab-pane fade" id="camera-pane" role="tabpanel">
+                        <form method="post" action="{% url 'finder:upload' %}" enctype="multipart/form-data" id="cameraForm">
+                            {% csrf_token %}
+                            <input type="file" name="image" id="cameraFileInput" class="d-none" accept="image/*">
+                            
+                            <!-- Camera View -->
+                            <div id="cameraContainer" class="text-center">
+                                <div class="camera-zone mb-3" style="border: 3px solid #0064d2; border-radius: 10px; overflow: hidden; background: #000;">
+                                    <video id="cameraVideo" autoplay playsinline style="width: 100%; max-height: 350px;"></video>
+                                </div>
+                                <button type="button" class="btn btn-primary btn-lg" id="captureBtn">
+                                    <i class="bi bi-camera"></i> Capture Photo
+                                </button>
+                                <button type="button" class="btn btn-secondary" id="startCameraBtn" style="display: none;">
+                                    <i class="bi bi-play"></i> Start Camera
+                                </button>
+                            </div>
+
+                            <!-- Captured Preview -->
+                            <div id="capturedContainer" class="mt-3 text-center d-none">
+                                <canvas id="capturedCanvas" style="display: none;"></canvas>
+                                <img id="capturedPreview" class="img-fluid rounded" style="max-height: 300px;">
+                                <div class="mt-3">
+                                    <button type="submit" class="btn btn-primary btn-lg">
+                                        <i class="bi bi-search"></i> Find Similar Products
+                                    </button>
+                                    <button type="button" class="btn btn-secondary" id="retakeBtn">
+                                        <i class="bi bi-arrow-counterclockwise"></i> Retake
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
                     </div>
-                </form>
+                </div>
             </div>
         </div>
 
@@ -105,6 +160,7 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // === UPLOAD TAB ===
     const uploadZone = document.getElementById('uploadZone');
     const imageInput = document.getElementById('imageInput');
     const imagePreview = document.getElementById('imagePreview');
@@ -141,6 +197,80 @@ document.addEventListener('DOMContentLoaded', function() {
         imageInput.value = '';
         uploadZone.classList.remove('d-none');
         previewContainer.classList.add('d-none');
+    });
+
+    // === CAMERA TAB ===
+    const video = document.getElementById('cameraVideo');
+    const canvas = document.getElementById('capturedCanvas');
+    const capturedPreview = document.getElementById('capturedPreview');
+    const cameraContainer = document.getElementById('cameraContainer');
+    const capturedContainer = document.getElementById('capturedContainer');
+    const captureBtn = document.getElementById('captureBtn');
+    const retakeBtn = document.getElementById('retakeBtn');
+    const startCameraBtn = document.getElementById('startCameraBtn');
+    const cameraFileInput = document.getElementById('cameraFileInput');
+    const cameraTab = document.getElementById('camera-tab');
+    
+    let stream = null;
+
+    // Start camera when tab is clicked
+    cameraTab.addEventListener('shown.bs.tab', startCamera);
+
+    async function startCamera() {
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: 'environment' }, 
+                audio: false 
+            });
+            video.srcObject = stream;
+            captureBtn.style.display = 'inline-block';
+            startCameraBtn.style.display = 'none';
+        } catch (err) {
+            console.error('Camera error:', err);
+            alert('Could not access camera. Please allow camera permissions or use the Upload option.');
+            captureBtn.style.display = 'none';
+            startCameraBtn.style.display = 'inline-block';
+        }
+    }
+
+    startCameraBtn.addEventListener('click', startCamera);
+
+    // Capture photo
+    captureBtn.addEventListener('click', () => {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+        
+        // Convert canvas to blob and set to file input
+        canvas.toBlob((blob) => {
+            const file = new File([blob], 'captured_photo.jpg', { type: 'image/jpeg' });
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            cameraFileInput.files = dataTransfer.files;
+            
+            capturedPreview.src = canvas.toDataURL('image/jpeg');
+            cameraContainer.classList.add('d-none');
+            capturedContainer.classList.remove('d-none');
+            
+            // Stop camera stream
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+        }, 'image/jpeg', 0.9);
+    });
+
+    // Retake photo
+    retakeBtn.addEventListener('click', () => {
+        capturedContainer.classList.add('d-none');
+        cameraContainer.classList.remove('d-none');
+        startCamera();
+    });
+
+    // Stop camera when switching tabs
+    document.getElementById('upload-tab').addEventListener('shown.bs.tab', () => {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+        }
     });
 });
 </script>
