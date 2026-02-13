@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
-from .models import ProductImage
+from .models import ProductImage, ListingProduct
 
 
 class ImageUploadForm(forms.ModelForm):
@@ -59,3 +59,42 @@ class SignUpForm(UserCreationForm):
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
             field.widget.attrs.setdefault('class', 'form-control')
+
+
+class ListingProductForm(forms.ModelForm):
+
+    class Meta:
+        model = ListingProduct
+        fields = ['title', 'price', 'quantity', 'condition', 'category_id', 'image']
+        widgets = {
+            'title': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., Apple AirPods Pro (2nd Gen)',
+            }),
+            'price': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0',
+            }),
+            'quantity': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '1',
+            }),
+            'condition': forms.Select(attrs={
+                'class': 'form-select',
+            }),
+            'category_id': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., 15032',
+            }),
+            'image': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*',
+            }),
+        }
+
+    def clean_image(self):
+        image = self.cleaned_data.get('image')
+        if image and image.size > 10 * 1024 * 1024:
+            raise forms.ValidationError("Image file too large (max 10MB)")
+        return image

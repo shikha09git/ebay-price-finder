@@ -7,8 +7,8 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from decimal import Decimal
 
-from .models import ProductImage, SearchResult, PriceSuggestion
-from .forms import ImageUploadForm, ManualSearchForm, SignUpForm
+from .models import ProductImage, SearchResult, PriceSuggestion, ListingProduct
+from .forms import ImageUploadForm, ManualSearchForm, SignUpForm, ListingProductForm
 from .services import EbayAPIService, ImageRecognitionService, PriceSuggestionService
 
 
@@ -36,13 +36,15 @@ def upload_image(request):
         product_image = form.save()
         
         recognition_service = ImageRecognitionService()
-        detected_label = recognition_service.recognize_product(
+        detected_label, detected_labels, web_label = recognition_service.recognize_product(
             product_image.image.path
         )
         product_image.detected_label = detected_label
+        product_image.detected_labels = ", ".join(detected_labels)
         product_image.save()
-        
-        _perform_search(product_image, detected_label)
+
+        search_keywords = web_label or detected_label
+        _perform_search(product_image, search_keywords)
         
         messages.success(request, f'Image uploaded! Detected: "{detected_label}"')
         return redirect('finder:results', pk=product_image.pk)
@@ -114,6 +116,47 @@ def refresh_search(request, pk):
     return redirect('finder:results', pk=pk)
 
 
+@login_required
+def add_product(request):
+
+    if request.method == 'POST':
+        form = ListingProductForm(request.POST, request.FILES)
+        if form.is_valid():
+            product = form.save()
+            messages.success(request, 'Demo listing saved locally (no eBay API call).')
+            return redirect('finder:product_detail', pk=product.pk)
+        messages.error(request, 'Please fix the errors below.')
+    else:
+        form = ListingProductForm()
+
+    recent_products = ListingProduct.objects.all()[:5]
+
+    return render(request, 'finder/add_product.html', {
+        'form': form,
+        'recent_products': recent_products,
+    })
+
+
+@login_required
+def product_list(request):
+
+    products = ListingProduct.objects.all()
+
+    return render(request, 'finder/products.html', {
+        'products': products,
+    })
+
+
+@login_required
+def product_detail(request, pk):
+
+    product = get_object_or_404(ListingProduct, pk=pk)
+
+    return render(request, 'finder/product_detail.html', {
+        'product': product,
+    })
+
+
 def _perform_search(product_image: ProductImage, keywords: str) -> None:
     
     ebay_service = EbayAPIService()
@@ -131,6 +174,7 @@ def _perform_search(product_image: ProductImage, keywords: str) -> None:
             item_url=item['item_url'],
             image_url=item['image_url'],
             condition=item['condition'],
+            description=item.get('description', ''),
         )
         prices.append(item['price'])
     
@@ -160,6 +204,7 @@ def api_search(request):
         'results': [
             {
                 'title': r['title'],
+                'description': r.get('description', ''),
                 'price': float(r['price']),
                 'currency': r['currency'],
                 'seller': r['seller'],

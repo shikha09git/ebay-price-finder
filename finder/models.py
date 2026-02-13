@@ -11,6 +11,7 @@ class ProductImage(models.Model):
     image = models.ImageField(upload_to=upload_to, blank=True, null=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
     detected_label = models.CharField(max_length=255, blank=True)
+    detected_labels = models.TextField(blank=True)
     
     class Meta:
         ordering = ['-uploaded_at']
@@ -33,6 +34,7 @@ class SearchResult(models.Model):
     item_url = models.URLField(max_length=1000)
     image_url = models.URLField(max_length=1000, blank=True)
     condition = models.CharField(max_length=100, blank=True)
+    description = models.TextField(blank=True)
     searched_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
@@ -59,3 +61,32 @@ class PriceSuggestion(models.Model):
     
     def __str__(self):
         return f"Suggestion: ${self.suggested_price}"
+
+
+class ListingProduct(models.Model):
+
+    CONDITION_NEW = 'new'
+    CONDITION_USED = 'used'
+    CONDITION_REFURBISHED = 'refurbished'
+    CONDITION_OPEN_BOX = 'open_box'
+
+    CONDITION_CHOICES = [
+        (CONDITION_NEW, 'New'),
+        (CONDITION_USED, 'Used'),
+        (CONDITION_REFURBISHED, 'Refurbished'),
+        (CONDITION_OPEN_BOX, 'Open Box'),
+    ]
+
+    title = models.CharField(max_length=200)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    quantity = models.PositiveIntegerField(default=1)
+    condition = models.CharField(max_length=20, choices=CONDITION_CHOICES)
+    category_id = models.CharField(max_length=32)
+    image = models.ImageField(upload_to=upload_to, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.title} (${self.price})"

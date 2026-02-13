@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ product.title }} - Listed Product{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'finder:product_list' %}">
+        <i class="bi bi-arrow-left"></i> Back to Products
+    </a>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-5">
+        <div class="card">
+            {% if product.image %}
+                <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.title }}" style="max-height: 420px; object-fit: cover;">
+            {% else %}
+                <div class="d-flex align-items-center justify-content-center bg-light" style="height: 320px;">
+                    <i class="bi bi-image text-muted" style="font-size: 2rem;"></i>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    <div class="col-lg-7">
+        <div class="card h-100">
+            <div class="card-body">
+                <h2 class="card-title">{{ product.title }}</h2>
+                <p class="text-muted">Category {{ product.category_id }} · {{ product.get_condition_display }}</p>
+                <div class="d-flex align-items-center gap-4 mb-3">
+                    <div>
+                        <div class="text-muted small">Price</div>
+                        <div class="h4 text-primary mb-0">${{ product.price }}</div>
+                    </div>
+                    <div>
+                        <div class="text-muted small">Quantity</div>
+                        <div class="h5 mb-0">{{ product.quantity }}</div>
+                    </div>
+                </div>
+                <div class="text-muted small">Saved {{ product.created_at|timesince }} ago</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

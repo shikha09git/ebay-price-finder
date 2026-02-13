@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+
+{% block title %}Add Product - eBay Price Finder{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-body">
+                <h2 class="card-title text-center mb-3">
+                    <i class="bi bi-plus-circle"></i> Add Product
+                </h2>
+                <p class="text-center text-muted mb-4">
+                    This demo saves the product locally and does not publish to eBay.
+                </p>
+                <div class="text-center mb-4">
+                    <a class="btn btn-outline-primary btn-sm" href="{% url 'finder:product_list' %}">
+                        <i class="bi bi-card-list"></i> View Listed Products
+                    </a>
+                </div>
+
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Title</label>
+                            {{ form.title }}
+                            {% if form.title.errors %}
+                                <div class="text-danger small">{{ form.title.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Price</label>
+                            {{ form.price }}
+                            {% if form.price.errors %}
+                                <div class="text-danger small">{{ form.price.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Quantity</label>
+                            {{ form.quantity }}
+                            {% if form.quantity.errors %}
+                                <div class="text-danger small">{{ form.quantity.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Condition</label>
+                            {{ form.condition }}
+                            {% if form.condition.errors %}
+                                <div class="text-danger small">{{ form.condition.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Category ID</label>
+                            {{ form.category_id }}
+                            {% if form.category_id.errors %}
+                                <div class="text-danger small">{{ form.category_id.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Image (optional)</label>
+                            {{ form.image }}
+                            {% if form.image.errors %}
+                                <div class="text-danger small">{{ form.image.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check2-circle"></i> Add Listing
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {% if recent_products %}
+        <div class="card">
+            <div class="card-body">
+                <h4 class="card-title"><i class="bi bi-clock-history"></i> Recent Demo Listings</h4>
+                <div class="list-group list-group-flush">
+                    {% for product in recent_products %}
+                    <a class="list-group-item list-group-item-action d-flex align-items-center justify-content-between" href="{% url 'finder:product_detail' pk=product.pk %}">
+                        <div class="d-flex align-items-center gap-3">
+                            {% if product.image %}
+                                <img src="{{ product.image.url }}" alt="{{ product.title }}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;">
+                            {% else %}
+                                <div class="bg-light d-flex align-items-center justify-content-center" style="width: 60px; height: 60px; border-radius: 8px;">
+                                    <i class="bi bi-image text-muted"></i>
+                                </div>
+                            {% endif %}
+                            <div>
+                                <div class="fw-semibold">{{ product.title }}</div>
+                                <div class="text-muted small">Category {{ product.category_id }} · {{ product.get_condition_display }}</div>
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <div class="fw-bold text-primary">${{ product.price }}</div>
+                            <div class="text-muted small">Qty {{ product.quantity }}</div>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

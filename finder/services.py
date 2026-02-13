@@ -1,13 +1,22 @@
 """
 eBay API integration service with demo data fallback.
 """
-import requests
 import base64
+import os
+import random
 import statistics
 from decimal import Decimal
-from django.conf import settings
 from typing import Optional
-import random
+
+import requests
+from django.conf import settings
+
+try:
+    from google.cloud import vision
+    from google.oauth2 import service_account
+except ImportError:
+    vision = None
+    service_account = None
 
 
 class EbayAPIService:
@@ -87,6 +96,7 @@ class EbayAPIService:
             price_info = item.get("price", {})
             results.append({
                 "title": item.get("title", ""),
+                "description": item.get("shortDescription", ""),
                 "price": Decimal(price_info.get("value", "0")),
                 "currency": price_info.get("currency", "USD"),
                 "seller": item.get("seller", {}).get("username", ""),
@@ -124,6 +134,7 @@ class EbayAPIService:
             
             results.append({
                 "title": f"{keywords} - {random.choice(['Brand New', 'Premium', 'Best Seller', 'Top Rated'])} - Listing {i+1}",
+                "description": f"{keywords} demo listing with standard features.",
                 "price": Decimal(str(price)),
                 "currency": "USD",
                 "seller": random.choice(demo_sellers),
@@ -138,9 +149,58 @@ class EbayAPIService:
 class ImageRecognitionService:
     
     
-    def recognize_product(self, image_path: str) -> str:
-        """Simple keyword extraction from filename."""
-        import os
+    def __init__(self) -> None:
+        self._client = None
+        self._enabled = False
+
+        if vision is None or service_account is None:
+            return
+
+        credentials_path = (
+            getattr(settings, 'GOOGLE_APPLICATION_CREDENTIALS', '')
+            or os.getenv('GOOGLE_APPLICATION_CREDENTIALS', '')
+        )
+        if credentials_path:
+            credentials = service_account.Credentials.from_service_account_file(
+                credentials_path
+            )
+            self._client = vision.ImageAnnotatorClient(credentials=credentials)
+            self._enabled = True
+
+    def recognize_product(self, image_path: str) -> tuple[str, list[str], str]:
+        """Return primary label, labels list, and optional web label."""
+        if not self._enabled:
+            primary = self._fallback_keywords(image_path)
+            return primary, [primary], ""
+
+        with open(image_path, "rb") as image_file:
+            content = image_file.read()
+
+        image = vision.Image(content=content)
+        response = self._client.annotate_image({
+            "image": image,
+            "features": [
+                {"type": vision.Feature.Type.LABEL_DETECTION, "max_results": 7},
+                {"type": vision.Feature.Type.WEB_DETECTION, "max_results": 3},
+            ],
+        })
+
+        if response.error.message:
+            primary = self._fallback_keywords(image_path)
+            return primary, [primary], ""
+
+        labels = [label.description for label in response.label_annotations]
+        web_label = ""
+        if response.web_detection and response.web_detection.best_guess_labels:
+            web_label = response.web_detection.best_guess_labels[0].label
+
+        primary = web_label or (labels[0] if labels else "product")
+        if primary and primary not in labels:
+            labels.insert(0, primary)
+
+        return primary, labels, web_label
+
+    def _fallback_keywords(self, image_path: str) -> str:
         filename = os.path.basename(image_path)
         name = os.path.splitext(filename)[0]
         keywords = name.replace("_", " ").replace("-", " ")

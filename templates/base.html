@@ -6,9 +6,23 @@
     <title>{% block title %}eBay Price Finder{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
-        :root { --primary-color: #0064d2; --secondary-color: #86b817; }
-        body { background-color: #f7f7f7; }
+        :root {
+            --primary-color: #0064d2;
+            --secondary-color: #86b817;
+            --ink-strong: #0b1b2b;
+            --ink-soft: #3e4f63;
+        }
+        body {
+            background: linear-gradient(180deg, #f5f9ff 0%, #f7f7f7 35%, #f6f1e8 100%);
+            font-family: "Source Sans 3", "Helvetica Neue", Arial, sans-serif;
+            color: var(--ink-soft);
+        }
+        h1, h2, h3, h4, h5, h6 {
+            font-family: "Space Grotesk", "Helvetica Neue", Arial, sans-serif;
+            color: var(--ink-strong);
+        }
         .navbar { background-color: var(--primary-color); }
         .btn-primary { background-color: var(--primary-color); border-color: var(--primary-color); }
         .btn-primary:hover { background-color: #0050a8; border-color: #0050a8; }
@@ -51,6 +65,17 @@
             font-weight: 600;
             font-size: 0.85rem;
         }
+        .nav-cta {
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 999px;
+            padding: 0.35rem 0.75rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+        .nav-cta:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
@@ -61,6 +86,9 @@
                 <i class="bi bi-search-heart"></i> eBay Price Finder
             </a>
             <div class="ms-auto d-flex align-items-center gap-3">
+                <a class="nav-link text-white nav-cta" href="{% url 'finder:product_list' %}">
+                    <i class="bi bi-plus-circle"></i> Products
+                </a>
                 {% if user.is_authenticated %}
                     <div class="dropdown">
                         <button class="profile-toggle dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">

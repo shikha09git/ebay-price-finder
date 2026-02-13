@@ -96,3 +96,9 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 EBAY_APP_ID = os.getenv('EBAY_APP_ID', '')
 EBAY_CERT_ID = os.getenv('EBAY_CERT_ID', '')
 EBAY_DEV_ID = os.getenv('EBAY_DEV_ID', '')
+
+GOOGLE_APPLICATION_CREDENTIALS = os.getenv('GOOGLE_APPLICATION_CREDENTIALS', '')
+if not GOOGLE_APPLICATION_CREDENTIALS:
+    default_creds = BASE_DIR / 'config' / 'api.json'
+    if default_creds.exists():
+        GOOGLE_APPLICATION_CREDENTIALS = str(default_creds)
