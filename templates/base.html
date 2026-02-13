@@ -22,6 +22,35 @@
         .product-card:hover { transform: translateY(-5px); }
         .stats-card { text-align: center; padding: 20px; }
         .stats-card h3 { color: var(--primary-color); margin-bottom: 5px; }
+        .auth-form input, .auth-form select, .auth-form textarea {
+            display: block;
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #ced4da;
+            border-radius: 0.375rem;
+        }
+        .profile-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            background: transparent;
+            color: #fff;
+            padding: 0.25rem 0.5rem;
+            border-radius: 999px;
+        }
+        .profile-avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #fff;
+            color: var(--primary-color);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
@@ -31,6 +60,36 @@
             <a class="navbar-brand" href="{% url 'finder:home' %}">
                 <i class="bi bi-search-heart"></i> eBay Price Finder
             </a>
+            <div class="ms-auto d-flex align-items-center gap-3">
+                {% if user.is_authenticated %}
+                    <div class="dropdown">
+                        <button class="profile-toggle dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <span class="profile-avatar">
+                                {{ user.get_username|default:'U'|slice:":1"|upper }}
+                            </span>
+                            <span class="small">{{ user.get_username }}</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li class="dropdown-item-text">Signed in as <strong>{{ user.get_username }}</strong></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'password_change' %}">Change Password</a></li>
+                            <li>
+                                <form method="post" action="{% url 'logout' %}" class="px-3 py-1">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-link p-0">Logout</button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
+                {% else %}
+                    <a class="btn btn-light btn-sm" href="{% url 'login' %}">Login</a>
+                    <a class="btn btn-light btn-sm" href="{% url 'signup' %}">Register</a>
+                    <form method="post" action="{% url 'finder:guest_login' %}" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-light btn-sm">Guest Login</button>
+                    </form>
+                {% endif %}
+            </div>
         </div>
     </nav>
 

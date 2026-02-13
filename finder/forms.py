@@ -1,9 +1,11 @@
 from django import forms
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.models import User
 from .models import ProductImage
 
 
 class ImageUploadForm(forms.ModelForm):
-    """Form for uploading product images."""
+    
     
     class Meta:
         model = ProductImage
@@ -31,7 +33,7 @@ class ImageUploadForm(forms.ModelForm):
 
 
 class ManualSearchForm(forms.Form):
-    """Form for manual keyword search."""
+   
     keywords = forms.CharField(
         max_length=200,
         widget=forms.TextInput(attrs={
@@ -39,3 +41,21 @@ class ManualSearchForm(forms.Form):
             'placeholder': 'Enter product keywords (e.g., "Mobil 1 Synthetic Oil 5W-30")',
         })
     )
+
+
+class SignUpForm(UserCreationForm):
+    
+
+    email = forms.EmailField(required=True, widget=forms.EmailInput(attrs={
+        'class': 'form-control',
+        'placeholder': 'you@example.com',
+    }))
+
+    class Meta(UserCreationForm.Meta):
+        model = User
+        fields = ('username', 'email', 'password1', 'password2')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault('class', 'form-control')

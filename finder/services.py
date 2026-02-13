@@ -11,7 +11,7 @@ import random
 
 
 class EbayAPIService:
-    """Service class for interacting with eBay APIs."""
+    
     
     OAUTH_TOKEN_URL = "https://api.ebay.com/identity/v1/oauth2/token"
     BROWSE_API_URL = "https://api.ebay.com/buy/browse/v1"
@@ -97,7 +97,7 @@ class EbayAPIService:
         return results
     
     def _get_demo_results(self, keywords: str) -> list[dict]:
-        """Return demo results when API credentials are not available."""
+       
         base_prices = {
             "oil": 25.99, "bottle": 15.99, "motor": 35.99,
             "synthetic": 45.99, "mobil": 39.99, "castrol": 37.99
@@ -136,7 +136,7 @@ class EbayAPIService:
 
 
 class ImageRecognitionService:
-    """Service for recognizing products in images."""
+    
     
     def recognize_product(self, image_path: str) -> str:
         """Simple keyword extraction from filename."""
@@ -148,7 +148,7 @@ class ImageRecognitionService:
 
 
 class PriceSuggestionService:
-    """Service for calculating price suggestions."""
+    
     
     @staticmethod
     def calculate_suggestion(prices: list[Decimal]) -> dict:

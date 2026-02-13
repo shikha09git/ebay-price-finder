@@ -1,16 +1,20 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
+from django.contrib.auth import login
+from django.contrib.auth import get_user_model
+from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from decimal import Decimal
 
 from .models import ProductImage, SearchResult, PriceSuggestion
-from .forms import ImageUploadForm, ManualSearchForm
+from .forms import ImageUploadForm, ManualSearchForm, SignUpForm
 from .services import EbayAPIService, ImageRecognitionService, PriceSuggestionService
 
 
+@login_required
 def home(request):
-    """Home page with image upload form."""
+    
     form = ImageUploadForm()
     manual_form = ManualSearchForm()
     recent_searches = ProductImage.objects.all()[:5]
@@ -22,9 +26,10 @@ def home(request):
     })
 
 
+@login_required
 @require_POST
 def upload_image(request):
-    """Handle image upload and initiate search."""
+    
     form = ImageUploadForm(request.POST, request.FILES)
     
     if form.is_valid():
@@ -46,9 +51,10 @@ def upload_image(request):
     return redirect('finder:home')
 
 
+@login_required
 @require_POST
 def manual_search(request):
-    """Handle manual keyword search."""
+    
     form = ManualSearchForm(request.POST)
     
     if form.is_valid():
@@ -67,8 +73,9 @@ def manual_search(request):
     return redirect('finder:home')
 
 
+@login_required
 def results(request, pk):
-    """Display search results and price suggestions."""
+    
     product_image = get_object_or_404(ProductImage, pk=pk)
     search_results = product_image.search_results.all()
     
@@ -89,8 +96,9 @@ def results(request, pk):
     })
 
 
+@login_required
 def refresh_search(request, pk):
-    """Refresh search for an existing product image."""
+    
     product_image = get_object_or_404(ProductImage, pk=pk)
     
     product_image.search_results.all().delete()
@@ -107,7 +115,7 @@ def refresh_search(request, pk):
 
 
 def _perform_search(product_image: ProductImage, keywords: str) -> None:
-    """Perform eBay search and save results."""
+    
     ebay_service = EbayAPIService()
     results = ebay_service.search_products(keywords)
     
@@ -134,8 +142,9 @@ def _perform_search(product_image: ProductImage, keywords: str) -> None:
         )
 
 
+@login_required
 def api_search(request):
-    """API endpoint for AJAX searches."""
+    
     keywords = request.GET.get('keywords', '')
     
     if not keywords:
@@ -168,3 +177,42 @@ def api_search(request):
             'total_listings': suggestion['total_listings'],
         }
     })
+
+
+def signup(request):
+    
+    if request.user.is_authenticated:
+        messages.info(request, 'You are already logged in.')
+        return redirect('finder:home')
+
+    if request.method == 'POST':
+        form = SignUpForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Account created. Please log in.')
+            return redirect('login')
+    else:
+        form = SignUpForm()
+
+    return render(request, 'registration/signup.html', {'form': form})
+
+
+@require_POST
+def guest_login(request):
+    
+    if request.user.is_authenticated:
+        messages.info(request, 'You are already logged in.')
+        return redirect('finder:home')
+
+    user_model = get_user_model()
+    guest_user, created = user_model.objects.get_or_create(
+        username='guest',
+        defaults={'email': 'guest@example.com'}
+    )
+    if created:
+        guest_user.set_unusable_password()
+        guest_user.save()
+
+    login(request, guest_user, backend='django.contrib.auth.backends.ModelBackend')
+    messages.success(request, 'Logged in as guest.')
+    return redirect('finder:home')

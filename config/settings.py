@@ -85,7 +85,14 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# eBay API Settings
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'finder:home'
+LOGOUT_REDIRECT_URL = 'finder:home'
+
+# Use console email backend for development password reset emails.
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+
 EBAY_APP_ID = os.getenv('EBAY_APP_ID', '')
 EBAY_CERT_ID = os.getenv('EBAY_CERT_ID', '')
 EBAY_DEV_ID = os.getenv('EBAY_DEV_ID', '')

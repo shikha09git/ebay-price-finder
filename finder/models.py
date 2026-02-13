@@ -7,7 +7,7 @@ def upload_to(instance, filename):
 
 
 class ProductImage(models.Model):
-    """Model to store uploaded product images."""
+    
     image = models.ImageField(upload_to=upload_to, blank=True, null=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
     detected_label = models.CharField(max_length=255, blank=True)
@@ -20,7 +20,7 @@ class ProductImage(models.Model):
 
 
 class SearchResult(models.Model):
-    """Model to store eBay search results."""
+    
     product_image = models.ForeignKey(
         ProductImage, 
         on_delete=models.CASCADE, 
@@ -43,7 +43,7 @@ class SearchResult(models.Model):
 
 
 class PriceSuggestion(models.Model):
-    """Model to store price suggestions."""
+    
     product_image = models.OneToOneField(
         ProductImage,
         on_delete=models.CASCADE,
